@@ -1,5 +1,7 @@
 // ignore_for_file: deprecated_member_use
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -10,6 +12,76 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static const minute = 60;
+  static const breakSeconds = 300;
+  int totalSeconds = 1500;
+  int minuteSelected = 2;
+  int totalRounds = 0;
+  int totalGoals = 0;
+  bool isRunning = false;
+  bool isBreaking = false;
+  late Timer timer;
+
+  void onTick(Timer timer) {
+    if (totalSeconds == 0) {
+      setState(() {
+        if (totalRounds >= 3) {
+          totalGoals = totalGoals + 1;
+          totalRounds = 0;
+          isBreaking = true;
+          totalSeconds = breakSeconds;
+        } else if (isBreaking) {
+          totalSeconds = 900 + (minuteSelected * minute * 5);
+          isBreaking = false;
+          isRunning = false;
+          timer.cancel();
+        } else {
+          totalRounds = totalRounds + 1;
+          totalSeconds = 900 + (minuteSelected * minute * 5);
+          //isRunning = false;
+        }
+      });
+    } else {
+      setState(() {
+        totalSeconds = totalSeconds - 1;
+      });
+    }
+  }
+
+  void onResetPressed(int index) {
+    setState(() {
+      if (!isBreaking) {
+        minuteSelected = index;
+        totalSeconds = 900 + (minuteSelected * minute * 5);
+      }
+    });
+  }
+
+  void onStartPressed() {
+    timer = Timer.periodic(
+      const Duration(seconds: 1),
+      onTick,
+    );
+    setState(() {
+      isRunning = true;
+    });
+  }
+
+  void onPausePressed() {
+    timer.cancel();
+    setState(() {
+      isRunning = false;
+    });
+  }
+
+  List<String> format(int seconds) {
+    var duration = Duration(seconds: seconds);
+    return [
+      duration.toString().split(".").first.split(":")[1],
+      duration.toString().split(".").first.split(":")[2]
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -22,7 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Container(
               alignment: Alignment.centerLeft,
               child: Text(
-                "POMOTIMER",
+                isBreaking ? "POMOTIMER (BREAKING)" : "POMOTIMER",
                 style: TextStyle(
                   color: Theme.of(context).cardColor,
                   letterSpacing: 1.15,
@@ -49,7 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(5),
                   ),
                   child: Text(
-                    "12",
+                    format(totalSeconds)[0],
                     style: TextStyle(
                         fontSize: 47,
                         color: Theme.of(context).backgroundColor,
@@ -73,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(5),
                   ),
                   child: Text(
-                    "57",
+                    format(totalSeconds)[1],
                     style: TextStyle(
                         fontSize: 47,
                         color: Theme.of(context).backgroundColor,
@@ -93,21 +165,31 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Row(
                   children: [
                     for (int i = 0; i < 5; i++)
-                      Container(
-                          margin: const EdgeInsets.only(left: 13, right: 13),
-                          padding: const EdgeInsets.only(left: 8, right: 8),
-                          decoration: BoxDecoration(
-                              color: Theme.of(context).cardColor.withOpacity(1),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                  width: 10,
-                                  color: Theme.of(context).cardColor)),
-                          child: Text("${15 + i * 5}",
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 18,
-                                color: Theme.of(context).backgroundColor,
-                              )))
+                      InkWell(
+                        onTap: () {
+                          onResetPressed(i);
+                        },
+                        child: Container(
+                            margin: const EdgeInsets.only(left: 13, right: 13),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 8, horizontal: 18),
+                            decoration: BoxDecoration(
+                                color: i == minuteSelected
+                                    ? Theme.of(context).cardColor
+                                    : Theme.of(context).backgroundColor,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                    width: 1,
+                                    color: Theme.of(context).cardColor)),
+                            child: Text("${15 + i * 5}",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 18,
+                                  color: i == minuteSelected
+                                      ? Theme.of(context).backgroundColor
+                                      : Theme.of(context).cardColor,
+                                ))),
+                      )
                   ],
                 ),
               )),
@@ -116,8 +198,16 @@ class _HomeScreenState extends State<HomeScreen> {
           flex: 3,
           child: Center(
             child: IconButton(
-              icon: const Icon(Icons.pause_circle_filled_outlined),
-              onPressed: () {},
+              icon: Icon(isBreaking
+                  ? Icons.remove_circle_outlined
+                  : isRunning
+                      ? Icons.pause_circle_filled_outlined
+                      : Icons.play_circle_fill_outlined),
+              onPressed: isBreaking
+                  ? () {}
+                  : isRunning
+                      ? onPausePressed
+                      : onStartPressed,
               iconSize: 88,
               color: Theme.of(context).cardColor.withOpacity(0.5),
             ),
@@ -134,7 +224,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Column(
                   children: [
                     Text(
-                      "0/4",
+                      "$totalRounds/4",
                       style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 19,
@@ -156,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Column(
                   children: [
                     Text(
-                      "0/12",
+                      "$totalGoals/12",
                       style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 19,
